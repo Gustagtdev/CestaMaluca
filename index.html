@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chuva de Frutas</title>
+<meta name="theme-color" content="#6ec1f0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Chuva de Frutas">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+<style>
+  :root {
+    --page: #dff2fb;
+    --card: #ffffff;
+    --ink: #23325a;
+    --berry: #e8476b;
+    --berry-deep: #b5304f;
+    --sun: #ffc83d;
+    --veil: rgba(35, 50, 90, 0.55);
+    --star-off: rgba(35, 50, 90, 0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #101a34;
+      --card: #f7fbff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #101a34;
+    --card: #f7fbff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: 'Fredoka', 'Trebuchet MS', system-ui, sans-serif;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .stage {
+    position: relative;
+    width: min(100vw, 900px);
+    height: min(100dvh, 760px);
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background: #6ec1f0;
+  }
+  @media (min-width: 920px) {
+    .stage { border-radius: 28px; }
+  }
+
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .hud {
+    position: absolute;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .score {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 6px 20px 6px 14px;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .score .fruit { font-size: 30px; }
+
+  .icon-btn {
+    pointer-events: auto;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: none;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 26px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+
+  .panel {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--veil);
+    padding: 20px;
+  }
+  .panel[hidden] { display: none; }
+
+  .card {
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 28px;
+    padding: 28px 26px 30px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+  }
+  .card h1 {
+    margin: 0 0 10px;
+    font-size: clamp(32px, 8vw, 46px);
+    line-height: 1.05;
+    font-weight: 700;
+  }
+  .card p { margin: 0 0 8px; font-size: 20px; line-height: 1.3; font-weight: 500; }
+  .card .hint { font-size: 17px; opacity: 0.75; margin-bottom: 22px; }
+
+  .stars { font-size: 56px; line-height: 1; margin: 6px 0 12px; letter-spacing: 4px; }
+  .stars span { color: var(--star-off); transition: color 0.25s; }
+  .stars span.on { color: var(--sun); }
+
+  .btn {
+    font-family: inherit;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--berry);
+    border: none;
+    border-radius: 999px;
+    padding: 12px 44px 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 var(--berry-deep);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--berry-deep); }
+
+  .btn:focus-visible,
+  .icon-btn:focus-visible {
+    outline: 4px solid var(--sun);
+    outline-offset: 3px;
+  }
+
+  .sr {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .stars span { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="game" role="img" aria-label="Área do jogo: um ursinho com uma cesta pega frutas que caem do céu"></canvas>
+
+  <div class="hud">
+    <div class="score"><span class="fruit" aria-hidden="true">🍎</span><span id="score">0</span><span class="sr"> frutas pegas</span></div>
+    <button class="icon-btn" id="sound" type="button" aria-pressed="true" aria-label="Desligar som">🔊</button>
+  </div>
+
+  <section class="panel" id="start">
+    <div class="card">
+      <h1>Chuva de Frutas</h1>
+      <p>Mova a cesta e pegue as frutas que caem do céu.</p>
+      <p class="hint">Arraste o dedo na tela ou use as setas do teclado.</p>
+      <button class="btn" id="play" type="button">Jogar</button>
+    </div>
+  </section>
+
+  <section class="panel" id="end" hidden>
+    <div class="card">
+      <h1 id="endTitle">Fim da rodada!</h1>
+      <div class="stars" id="stars" role="img" aria-label="0 de 3 estrelas"><span>★</span><span>★</span><span>★</span></div>
+      <p id="endText">Você pegou 0 frutas.</p>
+      <p class="hint" id="endMsg"></p>
+      <button class="btn" id="again" type="button">Jogar de novo</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Configuração ----------
+  var DURATION = 45;                       // segundos por rodada
+  var STAR_1 = 15, STAR_2 = 28, STAR_3 = 40; // frutas para ganhar estrelas
+  var FRUITS = ['🍎', '🍓', '🍌', '🍊', '🍇', '🍉', '🍐'];
+  var NOTES = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+  var EMOJI_FONT = "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
+  var TEXT_FONT = "'Fredoka','Trebuchet MS',system-ui,sans-serif";
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- Elementos ----------
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var scoreEl = document.getElementById('score');
+  var startPanel = document.getElementById('start');
+  var endPanel = document.getElementById('end');
+  var playBtn = document.getElementById('play');
+  var againBtn = document.getElementById('again');
+  var soundBtn = document.getElementById('sound');
+  var starsEl = document.getElementById('stars');
+  var endTitle = document.getElementById('endTitle');
+  var endText = document.getElementById('endText');
+  var endMsg = document.getElementById('endMsg');
+
+  // ---------- Utilidades ----------
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function circle(x, y, r) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); }
+  function roundRect(x, y, w, h, r) {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // ---------- Som ----------
+  var audioCtx = null;
+  var soundOn = true;
+  function ensureAudio() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { audioCtx = null; }
+  }
+  function beep(freq, dur, type, delay, vol) {
+    if (!soundOn || !audioCtx) return;
+    try {
+      var t = audioCtx.currentTime + (delay || 0);
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(vol || 0.16, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.12));
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + (dur || 0.12) + 0.03);
+    } catch (e) { /* sem som, sem problema */ }
+  }
+
+  // ---------- Estado ----------
+  var W = 0, H = 0, dpr = 1;
+  var groundY = 0, rimY = 0, basketW = 0, basketH = 0, bearSize = 0, itemSize = 0;
+  var skyGrad = null, flowers = [], clouds = [];
+  var basket = { x: 0 };
+  var targetX = 0;
+  var keys = { left: false, right: false };
+  var state = 'ready';        // ready | playing | over
+  var score = 0, t = 0, spawnTimer = 0, streak = 0, hop = 0;
+  var items = [], particles = [], floaters = [];
+  var last = 0;
+
+  // ---------- Layout ----------
+  function layout() {
+    groundY = H * 0.86;
+    basketW = clamp(W * 0.26, 112, 190);
+    basketH = basketW * 0.46;
+    rimY = groundY - basketH + 10;
+    bearSize = basketW * 0.78;
+    itemSize = clamp(W * 0.095, 46, 70);
+
+    skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+    skyGrad.addColorStop(0, '#6ec1f0');
+    skyGrad.addColorStop(1, '#c6ebfb');
+
+    flowers = [];
+    var colors = ['#ffffff', '#ff8fb1', '#ffd84d', '#ff9f5a'];
+    var band = Math.max(12, H - groundY - 26);
+    for (var i = 0; i < Math.floor(W / 46); i++) {
+      flowers.push({
+        x: (i + 0.5) * 46 + ((i * 37) % 19) - 9,
+        y: groundY + 18 + ((i * 53) % band),
+        c: colors[i % colors.length]
+      });
+    }
+
+    if (!clouds.length) {
+      clouds = [
+        { x: W * 0.12, yf: 0.12, s: 1.1, v: 9 },
+        { x: W * 0.55, yf: 0.24, s: 0.8, v: 6 },
+        { x: W * 0.85, yf: 0.09, s: 1.3, v: 12 }
+      ];
+    }
+  }
+
+  function resize() {
+    var r = stage.getBoundingClientRect();
+    var oldW = W;
+    W = r.width; H = r.height;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    layout();
+    if (oldW) { basket.x *= W / oldW; targetX *= W / oldW; }
+    else { basket.x = targetX = W / 2; }
+  }
+
+  // ---------- Entrada ----------
+  function pointerTo(e) {
+    var r = stage.getBoundingClientRect();
+    targetX = e.clientX - r.left;
+  }
+  stage.addEventListener('pointermove', pointerTo);
+  stage.addEventListener('pointerdown', pointerTo);
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keys.left = true; e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keys.right = true; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', function (e) {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+  });
+
+  soundBtn.addEventListener('click', function () {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '🔊' : '🔇';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.setAttribute('aria-label', soundOn ? 'Desligar som' : 'Ligar som');
+    if (soundOn) { ensureAudio(); beep(659.25, 0.1); }
+  });
+
+  // ---------- Fluxo do jogo ----------
+  function startGame() {
+    ensureAudio();
+    score = 0; t = 0; streak = 0; spawnTimer = 0.5;
+    items = []; particles = []; floaters = [];
+    scoreEl.textContent = '0';
+    state = 'playing';
+    startPanel.hidden = true;
+    endPanel.hidden = true;
+  }
+
+  function endGame() {
+    state = 'over';
+    items = [];
+    var stars = score >= STAR_3 ? 3 : score >= STAR_2 ? 2 : score >= STAR_1 ? 1 : 0;
+    var spans = starsEl.children;
+    for (var i = 0; i < spans.length; i++) spans[i].className = i < stars ? 'on' : '';
+    starsEl.setAttribute('aria-label', stars + ' de 3 estrelas');
+    var msgs = [
+      'Boa tentativa! Vamos de novo?',
+      'Muito bem!',
+      'Uau, que cesta rápida!',
+      'Incrível! Você pegou quase todas!'
+    ];
+    endMsg.textContent = msgs[stars];
+    endText.textContent = score === 1 ? 'Você pegou 1 fruta.' : 'Você pegou ' + score + ' frutas.';
+    endPanel.hidden = false;
+    againBtn.focus();
+    beep(523.25, 0.16, 'triangle', 0, 0.18);
+    beep(659.25, 0.16, 'triangle', 0.16, 0.18);
+    beep(783.99, 0.28, 'triangle', 0.32, 0.18);
+  }
+
+  playBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', startGame);
+
+  function spawn(p) {
+    items.push({
+      x: rand(itemSize * 0.6, W - itemSize * 0.6),
+      y: -itemSize,
+      vy: H * (0.24 + 0.12 * p) * rand(0.85, 1.15),
+      e: FRUITS[(Math.random() * FRUITS.length) | 0],
+      rot: rand(-0.3, 0.3),
+      vr: reduce ? 0 : rand(-1.2, 1.2)
+    });
+  }
+
+  function burst(x, y, colors, n) {
+    if (reduce) return;
+    for (var i = 0; i < n; i++) {
+      var a = rand(-Math.PI * 0.9, -Math.PI * 0.1);
+      var s = rand(80, 200);
+      particles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.6, r: rand(3, 5.5), c: colors[i % colors.length] });
+    }
+  }
+
+  // ---------- Atualização ----------
+  function update(dt) {
+    for (var c = 0; c < clouds.length; c++) {
+      clouds[c].x += clouds[c].v * dt;
+      if (clouds[c].x > W + 140) clouds[c].x = -160;
+    }
+
+    var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (dir) targetX += dir * W * 0.9 * dt;
+    targetX = clamp(targetX, basketW / 2, W - basketW / 2);
+    basket.x += (targetX - basket.x) * Math.min(1, dt * 16);
+    hop = Math.max(0, hop - dt * 4);
+
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var pt = particles[i];
+      pt.life -= dt;
+      pt.vy += 500 * dt;
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      if (pt.life <= 0) particles.splice(i, 1);
+    }
+    for (var j = floaters.length - 1; j >= 0; j--) {
+      floaters[j].life -= dt;
+      floaters[j].y -= 60 * dt;
+      if (floaters[j].life <= 0) floaters.splice(j, 1);
+    }
+
+    if (state !== 'playing') return;
+
+    t += dt;
+    var p = Math.min(1, t / DURATION);
+
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawn(p);
+      spawnTimer = (1.0 - 0.35 * p) * rand(0.7, 1.3);
+    }
+
+    for (var k = items.length - 1; k >= 0; k--) {
+      var it = items[k];
+      it.y += it.vy * dt;
+      it.rot += it.vr * dt;
+
+      var inBasketX = Math.abs(it.x - basket.x) <= basketW / 2 + itemSize * 0.1;
+      var inBasketY = it.y >= rimY - itemSize * 0.1 && it.y <= rimY + basketH * 0.6;
+
+      if (inBasketX && inBasketY) {
+        score += 1;
+        scoreEl.textContent = String(score);
+        beep(NOTES[streak % NOTES.length], 0.14, 'sine', 0, 0.16);
+        streak += 1;
+        hop = reduce ? 0 : 1;
+        burst(it.x, rimY, ['#ffc83d', '#e8476b', '#ffffff'], 7);
+        floaters.push({ x: it.x, y: rimY - itemSize * 0.6, life: 0.7, text: '+1' });
+        items.splice(k, 1);
+      } else if (it.y > groundY + itemSize * 0.2) {
+        burst(it.x, groundY, ['#6bcb7c', '#4fb86a'], 5);
+        streak = 0;
+        items.splice(k, 1);
+      }
+    }
+
+    if (t >= DURATION) endGame();
+  }
+
+  // ---------- Desenho ----------
+  function drawCloud(x, y, s) {
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath();
+    circle(x, y, 18 * s);
+    circle(x + 22 * s, y - 10 * s, 24 * s);
+    circle(x + 50 * s, y, 20 * s);
+    circle(x + 25 * s, y + 6 * s, 20 * s);
+    ctx.fill();
+  }
+
+  function drawBasket() {
+    var x = basket.x, w = basketW, h = basketH;
+    // corpo
+    ctx.fillStyle = '#b8743c';
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, rimY);
+    ctx.lineTo(x + w / 2, rimY);
+    ctx.lineTo(x + w * 0.4, rimY + h);
+    ctx.lineTo(x - w * 0.4, rimY + h);
+    ctx.closePath();
+    ctx.fill();
+    // trama
+    ctx.strokeStyle = '#8f5528';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.47, rimY + h * 0.36);
+    ctx.lineTo(x + w * 0.47, rimY + h * 0.36);
+    ctx.moveTo(x - w * 0.43, rimY + h * 0.68);
+    ctx.lineTo(x + w * 0.43, rimY + h * 0.68);
+    for (var i = -2; i <= 2; i++) {
+      ctx.moveTo(x + i * w * 0.18, rimY + 6);
+      ctx.lineTo(x + i * w * 0.15, rimY + h);
+    }
+    ctx.stroke();
+    // borda
+    ctx.fillStyle = '#d9975a';
+    ctx.beginPath();
+    roundRect(x - w / 2 - 6, rimY - 7, w + 12, 16, 8);
+    ctx.fill();
+  }
+
+  function draw() {
+    var p = state === 'ready' ? 0 : Math.min(1, t / DURATION);
+
+    // céu
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, groundY + 2);
+
+    // sol: atravessa o céu durante a rodada
+    var sr = Math.max(26, W * 0.05);
+    var sx = W * (0.1 + 0.8 * p);
+    var sy = groundY * 0.62 - Math.sin(p * Math.PI) * groundY * 0.4;
+    ctx.fillStyle = 'rgba(255,200,61,0.28)';
+    ctx.beginPath(); circle(sx, sy, sr * 1.7); ctx.fill();
+    ctx.fillStyle = '#ffc83d';
+    ctx.beginPath(); circle(sx, sy, sr); ctx.fill();
+
+    // tom de entardecer no final
+    var s = clamp((p - 0.75) / 0.25, 0, 1);
+    if (s > 0) {
+      ctx.fillStyle = 'rgba(255,150,90,' + (0.28 * s).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, groundY + 2);
+    }
+
+    // nuvens
+    for (var c = 0; c < clouds.length; c++) drawCloud(clouds[c].x, clouds[c].yf * H, clouds[c].s);
+
+    // colinas
+    ctx.fillStyle = '#7ed08a';
+    ctx.beginPath();
+    ctx.ellipse(W * 0.22, groundY + 6, W * 0.5, groundY * 0.13, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#69c579';
+    ctx.beginPath();
+    ctx.ellipse(W * 0.82, groundY + 6, W * 0.42, groundY * 0.09, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // grama
+    ctx.fillStyle = '#4fb86a';
+    ctx.fillRect(0, groundY, W, H - groundY);
+    ctx.fillStyle = '#6bcb7c';
+    ctx.fillRect(0, groundY, W, 8);
+    for (var f = 0; f < flowers.length; f++) {
+      ctx.fillStyle = flowers[f].c;
+      ctx.beginPath(); circle(flowers[f].x, flowers[f].y, 5); ctx.fill();
+      ctx.fillStyle = '#ffc83d';
+      ctx.beginPath(); circle(flowers[f].x, flowers[f].y, 2.2); ctx.fill();
+    }
+
+    // frutas
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = itemSize + 'px ' + EMOJI_FONT;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      ctx.save();
+      ctx.translate(it.x, it.y);
+      ctx.rotate(it.rot);
+      ctx.fillText(it.e, 0, 0);
+      ctx.restore();
+    }
+
+    // ursinho (pula quando pega uma fruta) e cesta
+    var hopY = -Math.sin(hop * Math.PI) * 12;
+    ctx.font = bearSize + 'px ' + EMOJI_FONT;
+    ctx.fillText('🐻', basket.x, rimY - bearSize * 0.12 + hopY);
+    drawBasket();
+
+    // faíscas
+    for (var q = 0; q < particles.length; q++) {
+      var pt = particles[q];
+      ctx.globalAlpha = clamp(pt.life / 0.6, 0, 1);
+      ctx.fillStyle = pt.c;
+      ctx.beginPath(); circle(pt.x, pt.y, pt.r); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // "+1"
+    ctx.font = '700 30px ' + TEXT_FONT;
+    ctx.lineWidth = 6;
+    ctx.lineJoin = 'round';
+    for (var m = 0; m < floaters.length; m++) {
+      var fl = floaters[m];
+      ctx.globalAlpha = clamp(fl.life / 0.7, 0, 1);
+      ctx.strokeStyle = '#23325a';
+      ctx.strokeText(fl.text, fl.x, fl.y);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(fl.text, fl.x, fl.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- Laço principal ----------
+  function frame(ts) {
+    var dt = Math.min(0.05, ((ts - last) / 1000) || 0);
+    last = ts;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  resize();
+  requestAnimationFrame(function (ts) { last = ts; requestAnimationFrame(frame); });
+  playBtn.focus();
+
+  // PWA: registra o service worker (funciona em HTTPS, como no Vercel)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* sem offline, o jogo continua funcionando */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
