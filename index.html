@@ -3,14 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chuva de Frutas</title>
-<meta name="theme-color" content="#6ec1f0">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Chuva de Frutas">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<title>Cesta Maluca</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
 <style>
   :root {
@@ -20,6 +13,8 @@
     --berry: #e8476b;
     --berry-deep: #b5304f;
     --sun: #ffc83d;
+    --gold: #d99a00;
+    --chip: #eef6fc;
     --veil: rgba(35, 50, 90, 0.55);
     --star-off: rgba(35, 50, 90, 0.18);
   }
@@ -88,7 +83,7 @@
     font-weight: 700;
     line-height: 1.1;
   }
-  .score .fruit { font-size: 30px; }
+  .score .icon { font-size: 30px; }
 
   .icon-btn {
     pointer-events: auto;
@@ -110,6 +105,7 @@
     place-items: center;
     background: var(--veil);
     padding: 20px;
+    overflow-y: auto;
   }
   .panel[hidden] { display: none; }
 
@@ -117,21 +113,50 @@
     background: var(--card);
     color: var(--ink);
     border-radius: 28px;
-    padding: 28px 26px 30px;
+    padding: 26px 22px 28px;
     text-align: center;
-    max-width: 360px;
+    max-width: 380px;
     width: 100%;
   }
   .card h1 {
-    margin: 0 0 10px;
-    font-size: clamp(32px, 8vw, 46px);
+    margin: 0 0 8px;
+    font-size: clamp(32px, 8vw, 44px);
     line-height: 1.05;
     font-weight: 700;
   }
-  .card p { margin: 0 0 8px; font-size: 20px; line-height: 1.3; font-weight: 500; }
-  .card .hint { font-size: 17px; opacity: 0.75; margin-bottom: 22px; }
+  .card p { margin: 0 0 8px; font-size: 19px; line-height: 1.3; font-weight: 500; }
+  .card .hint { font-size: 16px; opacity: 0.75; margin-bottom: 14px; }
 
-  .stars { font-size: 56px; line-height: 1; margin: 6px 0 12px; letter-spacing: 4px; }
+  .worlds {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 4px 0 20px;
+  }
+  .world {
+    flex: 1;
+    max-width: 108px;
+    font-family: inherit;
+    color: var(--ink);
+    background: var(--chip);
+    border: 3px solid transparent;
+    border-radius: 18px;
+    padding: 8px 4px 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .world[aria-pressed="true"] {
+    background: #ffffff;
+    border-color: var(--berry);
+  }
+  .world .w-emoji { font-size: 34px; line-height: 1.15; }
+  .world .w-name { font-size: 15px; font-weight: 600; }
+  .world .w-stars { font-size: 14px; letter-spacing: 1px; color: var(--gold); min-height: 1.2em; }
+
+  .stars { font-size: 52px; line-height: 1; margin: 4px 0 10px; letter-spacing: 4px; }
   .stars span { color: var(--star-off); transition: color 0.25s; }
   .stars span.on { color: var(--sun); }
 
@@ -151,7 +176,8 @@
   .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--berry-deep); }
 
   .btn:focus-visible,
-  .icon-btn:focus-visible {
+  .icon-btn:focus-visible,
+  .world:focus-visible {
     outline: 4px solid var(--sun);
     outline-offset: 3px;
   }
@@ -171,18 +197,19 @@
 </head>
 <body>
 <main class="stage" id="stage">
-  <canvas id="game" role="img" aria-label="Área do jogo: um ursinho com uma cesta pega frutas que caem do céu"></canvas>
+  <canvas id="game" role="img" aria-label="Área do jogo: um personagem com uma cesta pega coisas que caem do céu"></canvas>
 
   <div class="hud">
-    <div class="score"><span class="fruit" aria-hidden="true">🍎</span><span id="score">0</span><span class="sr"> frutas pegas</span></div>
+    <div class="score"><span class="icon" id="hudIcon" aria-hidden="true">🍎</span><span id="score">0</span><span class="sr"> pegos</span></div>
     <button class="icon-btn" id="sound" type="button" aria-pressed="true" aria-label="Desligar som">🔊</button>
   </div>
 
   <section class="panel" id="start">
     <div class="card">
-      <h1>Chuva de Frutas</h1>
-      <p>Mova a cesta e pegue as frutas que caem do céu.</p>
-      <p class="hint">Arraste o dedo na tela ou use as setas do teclado.</p>
+      <h1>Cesta Maluca</h1>
+      <p>Mova a cesta e pegue tudo que cai do céu.</p>
+      <p class="hint">Escolha um mundo. Arraste o dedo ou use as setas do teclado.</p>
+      <div class="worlds" id="worldsStart" role="group" aria-label="Escolha o mundo"></div>
       <button class="btn" id="play" type="button">Jogar</button>
     </div>
   </section>
@@ -193,6 +220,7 @@
       <div class="stars" id="stars" role="img" aria-label="0 de 3 estrelas"><span>★</span><span>★</span><span>★</span></div>
       <p id="endText">Você pegou 0 frutas.</p>
       <p class="hint" id="endMsg"></p>
+      <div class="worlds" id="worldsEnd" role="group" aria-label="Escolha o mundo"></div>
       <button class="btn" id="again" type="button">Jogar de novo</button>
     </div>
   </section>
@@ -203,19 +231,66 @@
   'use strict';
 
   // ---------- Configuração ----------
-  var DURATION = 45;                       // segundos por rodada
-  var STAR_1 = 15, STAR_2 = 28, STAR_3 = 40; // frutas para ganhar estrelas
-  var FRUITS = ['🍎', '🍓', '🍌', '🍊', '🍇', '🍉', '🍐'];
+  var DURATION = 45;                          // segundos por rodada
+  var STAR_1 = 15, STAR_2 = 28, STAR_3 = 40;  // itens para ganhar estrelas
   var NOTES = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
   var EMOJI_FONT = "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
   var TEXT_FONT = "'Fredoka','Trebuchet MS',system-ui,sans-serif";
+  var STORE_BEST = 'chuva.best';
+  var STORE_THEME = 'chuva.theme';
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Cada "mundo" muda visual, itens, personagem e um pouco da jogabilidade.
+  var ORDER = ['horta', 'mar', 'espaco'];
+  var THEMES = {
+    horta: {
+      id: 'horta', label: 'Horta', icon: '🍎', hero: '🐻',
+      items: ['🍎', '🍓', '🍌', '🍊', '🍇', '🍉', '🍐'],
+      noun: ['fruta', 'frutas'],
+      skyTop: '#6ec1f0', skyBot: '#c6ebfb',
+      ground: '#4fb86a', groundLight: '#6bcb7c', hill1: '#7ed08a', hill2: '#69c579',
+      mark: { core: '#ffc83d', halo: 'rgba(255,200,61,0.28)' },
+      tint: '255,150,90', tintA: 0.28,
+      ambient: 'clouds',
+      deco: 'flower', decoColors: ['#ffffff', '#ff8fb1', '#ffd84d', '#ff9f5a'],
+      basket: { body: '#b8743c', weave: '#8f5528', rim: '#d9975a' },
+      speed: 1.0, sway: 0, spin: 1.2, wave: 'sine'
+    },
+    mar: {
+      id: 'mar', label: 'Mar', icon: '🐠', hero: '🐙',
+      items: ['🐚', '🦀', '🐠', '🐟', '🦑', '🐡', '⭐'],
+      noun: ['tesouro do mar', 'tesouros do mar'],
+      skyTop: '#1f9bd1', skyBot: '#8fe0ef',
+      ground: '#f0d48a', groundLight: '#f7e2a8', hill1: '#e2bf72', hill2: '#d9b365',
+      mark: { core: '#fdfdff', halo: 'rgba(255,255,255,0.32)' },
+      tint: '10,40,90', tintA: 0.3,
+      ambient: 'bubbles',
+      deco: 'shell', decoColors: ['#ff9fb2', '#ffffff', '#ffb88a', '#c9a6ff'],
+      basket: { body: '#2b8a9e', weave: '#1f6b7b', rim: '#57b7c9' },
+      speed: 0.9, sway: 26, spin: 0.6, wave: 'triangle'
+    },
+    espaco: {
+      id: 'espaco', label: 'Espaço', icon: '🪐', hero: '👽',
+      items: ['⭐', '🌟', '💫', '🪐', '🌙', '🌍', '🚀'],
+      noun: ['tesouro do espaço', 'tesouros do espaço'],
+      skyTop: '#151a45', skyBot: '#3b3a86',
+      ground: '#7c78b3', groundLight: '#9a96cf', hill1: '#5f5b9c', hill2: '#4e4a88',
+      mark: { core: '#f4f1d0', halo: 'rgba(244,241,208,0.22)' },
+      tint: null, tintA: 0,
+      ambient: 'stars',
+      deco: 'crater', decoColors: [],
+      basket: { body: '#9aa3b8', weave: '#6d768c', rim: '#c7cee0' },
+      speed: 1.12, sway: 0, spin: 2.0, wave: 'triangle',
+      glow: 'rgba(255,255,255,0.3)'
+    }
+  };
 
   // ---------- Elementos ----------
   var stage = document.getElementById('stage');
   var canvas = document.getElementById('game');
   var ctx = canvas.getContext('2d');
   var scoreEl = document.getElementById('score');
+  var hudIcon = document.getElementById('hudIcon');
   var startPanel = document.getElementById('start');
   var endPanel = document.getElementById('end');
   var playBtn = document.getElementById('play');
@@ -225,6 +300,8 @@
   var endTitle = document.getElementById('endTitle');
   var endText = document.getElementById('endText');
   var endMsg = document.getElementById('endMsg');
+  var worldsStart = document.getElementById('worldsStart');
+  var worldsEnd = document.getElementById('worldsEnd');
 
   // ---------- Utilidades ----------
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -237,6 +314,14 @@
     ctx.arcTo(x, y + h, x, y, r);
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
+  }
+  function starsFor(n) { return n >= STAR_3 ? 3 : n >= STAR_2 ? 2 : n >= STAR_1 ? 1 : 0; }
+  function loadJSON(key, fallback) {
+    try { var v = window.localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch (e) { return fallback; }
+  }
+  function saveJSON(key, value) {
+    try { window.localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* sem armazenamento, sem problema */ }
   }
 
   // ---------- Som ----------
@@ -251,63 +336,88 @@
   function beep(freq, dur, type, delay, vol) {
     if (!soundOn || !audioCtx) return;
     try {
-      var t = audioCtx.currentTime + (delay || 0);
+      var t0 = audioCtx.currentTime + (delay || 0);
       var o = audioCtx.createOscillator();
       var g = audioCtx.createGain();
       o.type = type || 'sine';
-      o.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(vol || 0.16, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.12));
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(vol || 0.16, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + (dur || 0.12));
       o.connect(g);
       g.connect(audioCtx.destination);
-      o.start(t);
-      o.stop(t + (dur || 0.12) + 0.03);
+      o.start(t0);
+      o.stop(t0 + (dur || 0.12) + 0.03);
     } catch (e) { /* sem som, sem problema */ }
   }
 
   // ---------- Estado ----------
   var W = 0, H = 0, dpr = 1;
-  var groundY = 0, rimY = 0, basketW = 0, basketH = 0, bearSize = 0, itemSize = 0;
-  var skyGrad = null, flowers = [], clouds = [];
+  var groundY = 0, rimY = 0, basketW = 0, basketH = 0, heroSize = 0, itemSize = 0;
+  var skyGrad = null, deco = [], ambient = [];
+  var theme = THEMES.horta;
   var basket = { x: 0 };
   var targetX = 0;
   var keys = { left: false, right: false };
   var state = 'ready';        // ready | playing | over
-  var score = 0, t = 0, spawnTimer = 0, streak = 0, hop = 0;
+  var score = 0, t = 0, tick = 0, spawnTimer = 0, streak = 0, hop = 0;
   var items = [], particles = [], floaters = [];
+  var best = loadJSON(STORE_BEST, {});
   var last = 0;
 
-  // ---------- Layout ----------
+  // ---------- Cenário ----------
+  function buildSky() {
+    skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+    skyGrad.addColorStop(0, theme.skyTop);
+    skyGrad.addColorStop(1, theme.skyBot);
+  }
+
+  function buildDeco() {
+    deco = [];
+    var band = Math.max(12, H - groundY - 26);
+    var n = Math.floor(W / 46);
+    for (var i = 0; i < n; i++) {
+      deco.push({
+        x: (i + 0.5) * 46 + ((i * 37) % 19) - 9,
+        y: groundY + 18 + ((i * 53) % band),
+        c: theme.decoColors.length ? theme.decoColors[i % theme.decoColors.length] : '#000'
+      });
+    }
+  }
+
+  function initAmbient() {
+    var i;
+    ambient = [];
+    if (theme.ambient === 'clouds') {
+      ambient = [
+        { x: W * 0.12, yf: 0.12, s: 1.1, v: 9 },
+        { x: W * 0.55, yf: 0.24, s: 0.8, v: 6 },
+        { x: W * 0.85, yf: 0.09, s: 1.3, v: 12 }
+      ];
+    } else if (theme.ambient === 'bubbles') {
+      for (i = 0; i < 16; i++) {
+        ambient.push({ x: rand(0, W), y: rand(0, groundY), r: rand(4, 13), v: rand(14, 40), ph: rand(0, 6.28) });
+      }
+    } else if (theme.ambient === 'stars') {
+      for (i = 0; i < 50; i++) {
+        ambient.push({ x: rand(0, W), y: rand(0, groundY * 0.9), r: rand(1, 2.6), ph: rand(0, 6.28) });
+      }
+    }
+  }
+
+  function rebuildScene() {
+    buildSky();
+    buildDeco();
+    initAmbient();
+  }
+
   function layout() {
     groundY = H * 0.86;
     basketW = clamp(W * 0.26, 112, 190);
     basketH = basketW * 0.46;
     rimY = groundY - basketH + 10;
-    bearSize = basketW * 0.78;
+    heroSize = basketW * 0.78;
     itemSize = clamp(W * 0.095, 46, 70);
-
-    skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
-    skyGrad.addColorStop(0, '#6ec1f0');
-    skyGrad.addColorStop(1, '#c6ebfb');
-
-    flowers = [];
-    var colors = ['#ffffff', '#ff8fb1', '#ffd84d', '#ff9f5a'];
-    var band = Math.max(12, H - groundY - 26);
-    for (var i = 0; i < Math.floor(W / 46); i++) {
-      flowers.push({
-        x: (i + 0.5) * 46 + ((i * 37) % 19) - 9,
-        y: groundY + 18 + ((i * 53) % band),
-        c: colors[i % colors.length]
-      });
-    }
-
-    if (!clouds.length) {
-      clouds = [
-        { x: W * 0.12, yf: 0.12, s: 1.1, v: 9 },
-        { x: W * 0.55, yf: 0.24, s: 0.8, v: 6 },
-        { x: W * 0.85, yf: 0.09, s: 1.3, v: 12 }
-      ];
-    }
+    rebuildScene();
   }
 
   function resize() {
@@ -321,6 +431,45 @@
     layout();
     if (oldW) { basket.x *= W / oldW; targetX *= W / oldW; }
     else { basket.x = targetX = W / 2; }
+  }
+
+  // ---------- Mundos (temas) ----------
+  function buildWorlds(container) {
+    ORDER.forEach(function (id) {
+      var th = THEMES[id];
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'world';
+      b.setAttribute('data-id', id);
+      b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = '<span class="w-emoji" aria-hidden="true">' + th.icon + '</span>' +
+                    '<span class="w-name">' + th.label + '</span>' +
+                    '<span class="w-stars" aria-hidden="true"></span>';
+      b.addEventListener('click', function () { applyTheme(id); });
+      container.appendChild(b);
+    });
+  }
+
+  function updateWorldButtons() {
+    var buttons = document.querySelectorAll('.world');
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      var id = b.getAttribute('data-id');
+      var s = starsFor(best[id] || 0);
+      var starsText = '';
+      for (var k = 0; k < 3; k++) starsText += k < s ? '★' : '☆';
+      b.querySelector('.w-stars').textContent = starsText;
+      b.setAttribute('aria-pressed', String(id === theme.id));
+      b.setAttribute('aria-label', THEMES[id].label + ', ' + s + ' de 3 estrelas');
+    }
+  }
+
+  function applyTheme(id) {
+    theme = THEMES[id] || THEMES.horta;
+    hudIcon.textContent = theme.icon;
+    if (W) rebuildScene();
+    updateWorldButtons();
+    saveJSON(STORE_THEME, theme.id);
   }
 
   // ---------- Entrada ----------
@@ -362,18 +511,31 @@
   function endGame() {
     state = 'over';
     items = [];
-    var stars = score >= STAR_3 ? 3 : score >= STAR_2 ? 2 : score >= STAR_1 ? 1 : 0;
+
+    var isRecord = score > (best[theme.id] || 0);
+    if (isRecord) {
+      best[theme.id] = score;
+      saveJSON(STORE_BEST, best);
+    }
+    updateWorldButtons();
+
+    var stars = starsFor(score);
     var spans = starsEl.children;
     for (var i = 0; i < spans.length; i++) spans[i].className = i < stars ? 'on' : '';
     starsEl.setAttribute('aria-label', stars + ' de 3 estrelas');
+
     var msgs = [
       'Boa tentativa! Vamos de novo?',
       'Muito bem!',
       'Uau, que cesta rápida!',
-      'Incrível! Você pegou quase todas!'
+      'Incrível! Você pegou quase tudo!'
     ];
-    endMsg.textContent = msgs[stars];
-    endText.textContent = score === 1 ? 'Você pegou 1 fruta.' : 'Você pegou ' + score + ' frutas.';
+    var recordMsg = isRecord && score > 0 ? 'Novo recorde neste mundo!' : 'Seu recorde neste mundo: ' + (best[theme.id] || 0);
+    endMsg.textContent = msgs[stars] + ' ' + recordMsg;
+    endText.textContent = score === 1
+      ? 'Você pegou 1 ' + theme.noun[0] + '.'
+      : 'Você pegou ' + score + ' ' + theme.noun[1] + '.';
+
     endPanel.hidden = false;
     againBtn.focus();
     beep(523.25, 0.16, 'triangle', 0, 0.18);
@@ -385,14 +547,19 @@
   againBtn.addEventListener('click', startGame);
 
   function spawn(p) {
+    var sway = theme.sway;
     items.push({
-      x: rand(itemSize * 0.6, W - itemSize * 0.6),
+      x0: rand(itemSize * 0.6 + sway, W - itemSize * 0.6 - sway),
+      x: 0,
       y: -itemSize,
-      vy: H * (0.24 + 0.12 * p) * rand(0.85, 1.15),
-      e: FRUITS[(Math.random() * FRUITS.length) | 0],
+      age: 0,
+      ph: rand(0, 6.28),
+      vy: H * (0.24 + 0.12 * p) * theme.speed * rand(0.85, 1.15),
+      e: theme.items[(Math.random() * theme.items.length) | 0],
       rot: rand(-0.3, 0.3),
-      vr: reduce ? 0 : rand(-1.2, 1.2)
+      vr: reduce ? 0 : rand(-1, 1) * theme.spin
     });
+    items[items.length - 1].x = items[items.length - 1].x0;
   }
 
   function burst(x, y, colors, n) {
@@ -406,9 +573,20 @@
 
   // ---------- Atualização ----------
   function update(dt) {
-    for (var c = 0; c < clouds.length; c++) {
-      clouds[c].x += clouds[c].v * dt;
-      if (clouds[c].x > W + 140) clouds[c].x = -160;
+    tick += dt;
+
+    if (!reduce) {
+      for (var c = 0; c < ambient.length; c++) {
+        var a = ambient[c];
+        if (theme.ambient === 'clouds') {
+          a.x += a.v * dt;
+          if (a.x > W + 140) a.x = -160;
+        } else if (theme.ambient === 'bubbles') {
+          a.y -= a.v * dt;
+          a.x += Math.sin(tick * 1.5 + a.ph) * 8 * dt;
+          if (a.y < -20) { a.y = groundY + 10; a.x = rand(0, W); }
+        }
+      }
     }
 
     var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
@@ -444,8 +622,10 @@
 
     for (var k = items.length - 1; k >= 0; k--) {
       var it = items[k];
+      it.age += dt;
       it.y += it.vy * dt;
       it.rot += it.vr * dt;
+      it.x = theme.sway ? it.x0 + Math.sin(it.age * 2.2 + it.ph) * theme.sway : it.x0;
 
       var inBasketX = Math.abs(it.x - basket.x) <= basketW / 2 + itemSize * 0.1;
       var inBasketY = it.y >= rimY - itemSize * 0.1 && it.y <= rimY + basketH * 0.6;
@@ -453,14 +633,14 @@
       if (inBasketX && inBasketY) {
         score += 1;
         scoreEl.textContent = String(score);
-        beep(NOTES[streak % NOTES.length], 0.14, 'sine', 0, 0.16);
+        beep(NOTES[streak % NOTES.length], 0.14, theme.wave, 0, 0.16);
         streak += 1;
         hop = reduce ? 0 : 1;
         burst(it.x, rimY, ['#ffc83d', '#e8476b', '#ffffff'], 7);
         floaters.push({ x: it.x, y: rimY - itemSize * 0.6, life: 0.7, text: '+1' });
         items.splice(k, 1);
       } else if (it.y > groundY + itemSize * 0.2) {
-        burst(it.x, groundY, ['#6bcb7c', '#4fb86a'], 5);
+        burst(it.x, groundY, [theme.ground, theme.groundLight], 5);
         streak = 0;
         items.splice(k, 1);
       }
@@ -480,10 +660,57 @@
     ctx.fill();
   }
 
+  function drawAmbientBack() {
+    if (theme.ambient !== 'stars') return;
+    ctx.fillStyle = '#ffffff';
+    for (var i = 0; i < ambient.length; i++) {
+      var s = ambient[i];
+      ctx.globalAlpha = reduce ? 0.8 : 0.45 + 0.45 * Math.sin(tick * 2 + s.ph);
+      ctx.beginPath(); circle(s.x, s.y, s.r); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawAmbientFront() {
+    var i;
+    if (theme.ambient === 'clouds') {
+      for (i = 0; i < ambient.length; i++) drawCloud(ambient[i].x, ambient[i].yf * H, ambient[i].s);
+    } else if (theme.ambient === 'bubbles') {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      for (i = 0; i < ambient.length; i++) {
+        var b = ambient[i];
+        ctx.beginPath(); circle(b.x, b.y, b.r); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); circle(b.x - b.r * 0.35, b.y - b.r * 0.35, Math.max(1.2, b.r * 0.2)); ctx.fill();
+      }
+    }
+  }
+
+  function drawDeco() {
+    for (var i = 0; i < deco.length; i++) {
+      var d = deco[i];
+      if (theme.deco === 'flower') {
+        ctx.fillStyle = d.c;
+        ctx.beginPath(); circle(d.x, d.y, 5); ctx.fill();
+        ctx.fillStyle = '#ffc83d';
+        ctx.beginPath(); circle(d.x, d.y, 2.2); ctx.fill();
+      } else if (theme.deco === 'shell') {
+        ctx.fillStyle = d.c;
+        ctx.beginPath(); ctx.ellipse(d.x, d.y, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.16)';
+        ctx.beginPath(); ctx.ellipse(d.x, d.y, 11, 5, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
   function drawBasket() {
-    var x = basket.x, w = basketW, h = basketH;
-    // corpo
-    ctx.fillStyle = '#b8743c';
+    var x = basket.x, w = basketW, h = basketH, bk = theme.basket;
+    ctx.fillStyle = bk.body;
     ctx.beginPath();
     ctx.moveTo(x - w / 2, rimY);
     ctx.lineTo(x + w / 2, rimY);
@@ -491,8 +718,7 @@
     ctx.lineTo(x - w * 0.4, rimY + h);
     ctx.closePath();
     ctx.fill();
-    // trama
-    ctx.strokeStyle = '#8f5528';
+    ctx.strokeStyle = bk.weave;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(x - w * 0.47, rimY + h * 0.36);
@@ -504,8 +730,7 @@
       ctx.lineTo(x + i * w * 0.15, rimY + h);
     }
     ctx.stroke();
-    // borda
-    ctx.fillStyle = '#d9975a';
+    ctx.fillStyle = bk.rim;
     ctx.beginPath();
     roundRect(x - w / 2 - 6, rimY - 7, w + 12, 16, 8);
     ctx.fill();
@@ -517,54 +742,55 @@
     // céu
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, groundY + 2);
+    drawAmbientBack();
 
-    // sol: atravessa o céu durante a rodada
+    // marcador do tempo (sol, pérola ou lua): atravessa o céu durante a rodada
     var sr = Math.max(26, W * 0.05);
     var sx = W * (0.1 + 0.8 * p);
     var sy = groundY * 0.62 - Math.sin(p * Math.PI) * groundY * 0.4;
-    ctx.fillStyle = 'rgba(255,200,61,0.28)';
+    ctx.fillStyle = theme.mark.halo;
     ctx.beginPath(); circle(sx, sy, sr * 1.7); ctx.fill();
-    ctx.fillStyle = '#ffc83d';
+    ctx.fillStyle = theme.mark.core;
     ctx.beginPath(); circle(sx, sy, sr); ctx.fill();
 
-    // tom de entardecer no final
+    // tom de fim de rodada
     var s = clamp((p - 0.75) / 0.25, 0, 1);
-    if (s > 0) {
-      ctx.fillStyle = 'rgba(255,150,90,' + (0.28 * s).toFixed(3) + ')';
+    if (s > 0 && theme.tint) {
+      ctx.fillStyle = 'rgba(' + theme.tint + ',' + (theme.tintA * s).toFixed(3) + ')';
       ctx.fillRect(0, 0, W, groundY + 2);
     }
 
-    // nuvens
-    for (var c = 0; c < clouds.length; c++) drawCloud(clouds[c].x, clouds[c].yf * H, clouds[c].s);
+    drawAmbientFront();
 
-    // colinas
-    ctx.fillStyle = '#7ed08a';
+    // colinas e chão
+    ctx.fillStyle = theme.hill1;
     ctx.beginPath();
     ctx.ellipse(W * 0.22, groundY + 6, W * 0.5, groundY * 0.13, 0, Math.PI, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#69c579';
+    ctx.fillStyle = theme.hill2;
     ctx.beginPath();
     ctx.ellipse(W * 0.82, groundY + 6, W * 0.42, groundY * 0.09, 0, Math.PI, Math.PI * 2);
     ctx.fill();
 
-    // grama
-    ctx.fillStyle = '#4fb86a';
+    ctx.fillStyle = theme.ground;
     ctx.fillRect(0, groundY, W, H - groundY);
-    ctx.fillStyle = '#6bcb7c';
+    ctx.fillStyle = theme.groundLight;
     ctx.fillRect(0, groundY, W, 8);
-    for (var f = 0; f < flowers.length; f++) {
-      ctx.fillStyle = flowers[f].c;
-      ctx.beginPath(); circle(flowers[f].x, flowers[f].y, 5); ctx.fill();
-      ctx.fillStyle = '#ffc83d';
-      ctx.beginPath(); circle(flowers[f].x, flowers[f].y, 2.2); ctx.fill();
-    }
+    drawDeco();
 
-    // frutas
+    // itens que caem
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = itemSize + 'px ' + EMOJI_FONT;
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
+      if (theme.glow) {
+        var gr = ctx.createRadialGradient(it.x, it.y, 0, it.x, it.y, itemSize * 0.8);
+        gr.addColorStop(0, theme.glow);
+        gr.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath(); circle(it.x, it.y, itemSize * 0.8); ctx.fill();
+      }
       ctx.save();
       ctx.translate(it.x, it.y);
       ctx.rotate(it.rot);
@@ -572,10 +798,10 @@
       ctx.restore();
     }
 
-    // ursinho (pula quando pega uma fruta) e cesta
+    // personagem (pula quando pega algo) e cesta
     var hopY = -Math.sin(hop * Math.PI) * 12;
-    ctx.font = bearSize + 'px ' + EMOJI_FONT;
-    ctx.fillText('🐻', basket.x, rimY - bearSize * 0.12 + hopY);
+    ctx.font = heroSize + 'px ' + EMOJI_FONT;
+    ctx.fillText(theme.hero, basket.x, rimY - heroSize * 0.12 + hopY);
     drawBasket();
 
     // faíscas
@@ -611,18 +837,15 @@
     requestAnimationFrame(frame);
   }
 
+  // ---------- Início ----------
+  buildWorlds(worldsStart);
+  buildWorlds(worldsEnd);
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', resize);
   resize();
+  applyTheme(loadJSON(STORE_THEME, 'horta'));
   requestAnimationFrame(function (ts) { last = ts; requestAnimationFrame(frame); });
   playBtn.focus();
-
-  // PWA: registra o service worker (funciona em HTTPS, como no Vercel)
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* sem offline, o jogo continua funcionando */ });
-    });
-  }
 })();
 </script>
 </body>
